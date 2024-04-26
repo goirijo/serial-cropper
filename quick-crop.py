@@ -2,41 +2,65 @@ import PIL
 from PIL import Image, ImageTk
 import tkinter as tk
 import numpy as np
-
-
+import os
 
 
 class QuickCropper(tk.Frame):
 
+    def _get_cropped_pathname(self):
+        directory,filename=os.path.split(self.path)
+        base_name,extension=os.path.splitext(filename)
+
+        return os.path.join(directory, "qc-r{:.4f}-{}".format(self.crop_ratio,base_name)+ extension)
+
+
+    def _crop(self, x, y):
+        w,h=self.img_w,self.img_h
+        r=self.crop_ratio
+        coords=self._calculate_crop_region_coords(x,y,w,h,r)
+
+        cimg=self.img.crop(coords)
+        return cimg
+
+    def _commit(self,event):
+        x,y=event.x,event.y
+        new_file=self._get_cropped_pathname()
+        cimg=self._crop(x,y)
+        cimg.save(new_file)
+        print("Cropped! Saved to {}".format(new_file))
+
     def _flip_crop_region(self,event):
         self.crop_ratio=1/self.crop_ratio
 
-    def _calculate_coords_for_landscape_crop_region(self, x, y):
-        w,h=self.cvs_w,self.cvs_h
-
+    def _calculate_coords_for_landscape_crop_region(self, x, y, w, h, r):
         dx=w
-        dy=dx//self.crop_ratio
+        dy=dx//r
         x=dx/2
         
-        max_h=w/self.crop_ratio
+        max_h=w/r
         y=max(y,max_h/2)
         y=min(h-max_h/2,y)
 
         coords=(x-dx/2,y-dy/2,x+dx/2,y+dy/2)
         return coords
 
-    def _calculate_coords_for_portrait_crop_region(self, x, y):
-        w,h=self.cvs_w,self.cvs_h
-
+    def _calculate_coords_for_portrait_crop_region(self, x, y, w, h, r):
         dy=h
-        dx=dy*self.crop_ratio
+        dx=dy*r
         y=dy/2
         
-        max_w=h*self.crop_ratio
+        max_w=h*r
         x=max(x,max_w/2)
         x=min(w-max_w/2,x)
 
         coords=(x-dx/2,y-dy/2,x+dx/2,y+dy/2)
+        return coords
+
+    def _calculate_crop_region_coords(self, x, y, w, h, r):
+        if self.crop_ratio > 1:
+            coords=self._calculate_coords_for_landscape_crop_region(x,y,w,h,r)
+        else:
+            coords=self._calculate_coords_for_portrait_crop_region(x,y,w,h,r)
         return coords
 
     def _draw_top_crop(self,coords):
@@ -61,13 +85,11 @@ class QuickCropper(tk.Frame):
 
     def _draw_crop_region(self,event):
         x,y=event.x,event.y
+        w,h=self.cvs_w,self.cvs_h
         self.canvas.delete(self.current_rectangle)
+        r=self.crop_ratio
 
-        if self.crop_ratio > 1:
-            coords=self._calculate_coords_for_landscape_crop_region(x,y)
-
-        else:
-            coords=self._calculate_coords_for_portrait_crop_region(x,y)
+        coords=self._calculate_crop_region_coords(x,y,w,h,r)
 
         self._draw_top_crop(coords)
         self._draw_bottom_crop(coords)
@@ -124,6 +146,7 @@ class QuickCropper(tk.Frame):
         self.parent.resizable(False,False)
         self.parent.bind("<Motion>", self._draw_crop_region)
         self.parent.bind("<space>", self._flip_crop_region)
+        self.parent.bind("<Button-1>", self._commit)
 
         self.img=Image.open(path)
         self.img_w,self.img_h=self.img.size
