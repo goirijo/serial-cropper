@@ -39,6 +39,26 @@ class QuickCropper(tk.Frame):
         coords=(x-dx/2,y-dy/2,x+dx/2,y+dy/2)
         return coords
 
+    def _draw_top_crop(self,coords):
+        self.canvas.delete(self.current_top_crop)
+        self.current_top_crop=self.canvas.create_rectangle(0,0,self.cvs_w,coords[1], fill="gray",stipple="gray75")
+        return
+
+    def _draw_bottom_crop(self,coords):
+        self.canvas.delete(self.current_bottom_crop)
+        self.current_bottom_crop=self.canvas.create_rectangle(0,coords[3],self.cvs_w,self.cvs_h, fill="gray",stipple="gray75")
+        return
+
+    def _draw_left_crop(self,coords):
+        self.canvas.delete(self.current_left_crop)
+        self.current_left_crop=self.canvas.create_rectangle(0,0,coords[0],self.cvs_h, fill="gray",stipple="gray75")
+        return
+
+    def _draw_right_crop(self,coords):
+        self.canvas.delete(self.current_right_crop)
+        self.current_right_crop=self.canvas.create_rectangle(coords[2],0,self.cvs_w,self.cvs_h, fill="gray",stipple="gray75")
+        return
+
     def _draw_crop_region(self,event):
         x,y=event.x,event.y
         self.canvas.delete(self.current_rectangle)
@@ -49,8 +69,10 @@ class QuickCropper(tk.Frame):
         else:
             coords=self._calculate_coords_for_portrait_crop_region(x,y)
 
-        self.current_rectangle=self.canvas.create_rectangle(*coords, fill="gray",stipple="gray50")
-        #print("{}, {}".format(x,y))
+        self._draw_top_crop(coords)
+        self._draw_bottom_crop(coords)
+        self._draw_left_crop(coords)
+        self._draw_right_crop(coords)
         return
 
     def _assign_canvas_dimensions(self, win_size):
@@ -113,6 +135,10 @@ class QuickCropper(tk.Frame):
 
         #garbage rectangle so we have something to delete
         self.current_rectangle=self.canvas.create_rectangle(0,0,0,0)
+        self.current_top_crop=self.canvas.create_rectangle(0,0,0,0)
+        self.current_bottom_crop=self.canvas.create_rectangle(0,0,0,0)
+        self.current_left_crop=self.canvas.create_rectangle(0,0,0,0)
+        self.current_right_crop=self.canvas.create_rectangle(0,0,0,0)
 
 
 
