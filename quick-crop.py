@@ -3,6 +3,7 @@ from PIL import Image, ImageTk
 import tkinter as tk
 import numpy as np
 import os
+import argparse
 
 
 class QuickCropper(tk.Frame):
@@ -11,7 +12,7 @@ class QuickCropper(tk.Frame):
         directory,filename=os.path.split(self.path)
         base_name,extension=os.path.splitext(filename)
 
-        return os.path.join(directory, "qc-r{:.4f}-{}".format(self.crop_ratio,base_name)+ extension)
+        return os.path.join(directory, "sc-r{:.4f}-{}".format(self.crop_ratio,base_name)+ extension)
 
 
     def _crop(self, x, y):
@@ -166,14 +167,21 @@ class QuickCropper(tk.Frame):
 
 
 def main():
-    path="./media/test_landscape.jpg"
-    path="./media/test_portrait.jpg"
+    parser=argparse.ArgumentParser()
+    parser.add_argument("-j", "--jpgs", nargs='+', required=True, help="List of pictures you want to crop")
+    parser.add_argument("-r", "--crop-ratio", required=True, help="Proportion in which to crop as wxh, e.g. 4x6")
 
-    root=tk.Tk()
-    root.title('Click to crop')
+    args=parser.parse_args()
 
-    QuickCropper(root,path,4/6)
-    root.mainloop()
+    image_files=args.jpgs
+    w,h=args.crop_ratio.split('x')
+
+    for f in image_files:
+        root=tk.Tk()
+        root.title('Click to crop')
+
+        QuickCropper(root,f,int(w)/int(h))
+        root.mainloop()
 
 if __name__=="__main__":
     main()
