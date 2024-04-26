@@ -59,7 +59,12 @@ class QuickCropper(tk.Frame):
         return coords
 
     def _calculate_crop_region_coords(self, x, y, w, h, r):
-        if self.crop_ratio > 1:
+        cvsr=self.cvs_w/self.cvs_h
+        r=self.crop_ratio
+
+        print(r)
+
+        if cvsr < r:
             coords=self._calculate_coords_for_landscape_crop_region(x,y,w,h,r)
         else:
             coords=self._calculate_coords_for_portrait_crop_region(x,y,w,h,r)
