@@ -29,6 +29,7 @@ class QuickCropper(tk.Frame):
         cimg=self._crop(x,y)
         cimg.save(new_file)
         print("Cropped! Saved to {}".format(new_file))
+        self.parent.destroy()
 
     def _flip_crop_region(self,event):
         self.crop_ratio=1/self.crop_ratio
