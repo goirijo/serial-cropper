@@ -117,15 +117,6 @@ class QuickCropper(tk.Frame):
             self.cvs_w=int(self.img_r*win_size)
         return
 
-    #def _assign_long_short_axis(self):
-    #    if self.crop_ratio < 1:
-    #        self.long_ax=self.cvs_h
-    #        self.short_ax=self.cvs_w
-    #    else:
-    #        self.long_ax=self.cvs_w
-    #        self.short_ax=self.cvs_h
-    #    return
-    
     @staticmethod
     def resize_image(final_width,image, window_width):
         w,h=image.size
@@ -168,15 +159,9 @@ class QuickCropper(tk.Frame):
         self.img_r=self.img_w/self.img_h
 
         self._assign_canvas_dimensions(win_size)
-        #self._assign_long_short_axis()
         self._start_canvas()
 
-        #garbage rectangle so we have something to delete
-        #self.current_rectangle=self.canvas.create_rectangle(0,0,0,0)
-        #self.current_top_crop=self.canvas.create_rectangle(0,0,0,0)
-        #self.current_bottom_crop=self.canvas.create_rectangle(0,0,0,0)
-        #self.current_left_crop=self.canvas.create_rectangle(0,0,0,0)
-        #self.current_right_crop=self.canvas.create_rectangle(0,0,0,0)
+        #garbage rectangles so we have something to delete
         self.current_crop=[self.canvas.create_rectangle(0,0,0,0),self.canvas.create_rectangle(0,0,0,0)]
 
 
