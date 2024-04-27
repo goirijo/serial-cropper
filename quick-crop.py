@@ -8,6 +8,34 @@ import argparse
 
 class QuickCropper(tk.Frame):
 
+    def _on_x_press(self,event):
+        self.parent.destroy()
+
+    def _on_key_press(self,event):
+        key=event.char
+
+        if key=='x':
+            self._on_x_press(event)
+        elif key.isdigit():
+            self.grid_num=int(key)
+        else:
+            print("Unrecognized key '{}'".format(key))
+
+        x,y=event.x,event.y
+        self._draw_crop_region(x,y)
+        return
+
+    def _on_mouse_move(self,event):
+        x,y=event.x,event.y
+        self._draw_crop_region(x,y)
+        return
+
+    def _on_space_press(self,event):
+        x,y=event.x,event.y
+        self._flip_crop_region()
+        self._draw_crop_region(x,y)
+        return
+
     def _get_cropped_pathname(self):
         directory,filename=os.path.split(self.path)
         base_name,extension=os.path.splitext(filename)
@@ -29,9 +57,11 @@ class QuickCropper(tk.Frame):
         cimg.save(new_file)
         print("Cropped! Saved to {}".format(new_file))
         self.parent.destroy()
+        return
 
-    def _flip_crop_region(self,event):
+    def _flip_crop_region(self):
         self.crop_ratio=1/self.crop_ratio
+        return
 
     def _calculate_coords_for_landscape_crop_region(self, x, y, w, h, r):
         dx=w
@@ -102,10 +132,10 @@ class QuickCropper(tk.Frame):
         for i in range(n+1):
             self.current_grid.append(self.canvas.create_line(x[i],y0,x[i],y1))
             self.current_grid.append(self.canvas.create_line(x0,y[i],x1,y[i]))
+        return
 
 
-    def _draw_crop_region(self,event):
-        x,y=event.x,event.y
+    def _draw_crop_region(self,x,y):
         w,h=self.cvs_w,self.cvs_h
         r=self.crop_ratio
 
@@ -150,6 +180,7 @@ class QuickCropper(tk.Frame):
 
         self.tk_image=ImageTk.PhotoImage(resized_image)
         self.canvas.create_image((0,0),image=self.tk_image,anchor=tk.NW)
+        return
 
     @staticmethod
     def _parse_ratio(crop_ratio):
@@ -165,9 +196,10 @@ class QuickCropper(tk.Frame):
         self.crop_ratio=self._parse_ratio(crop_ratio)
 
         self.parent.resizable(False,False)
-        self.parent.bind("<Motion>", self._draw_crop_region)
-        self.parent.bind("<space>", self._flip_crop_region)
+        self.parent.bind("<Motion>", self._on_mouse_move)
+        self.parent.bind("<space>", self._on_space_press)
         self.parent.bind("<Button-1>", self._commit)
+        self.parent.bind("<Key>", self._on_key_press)
 
         self.img=Image.open(path)
         self.img_w,self.img_h=self.img.size
@@ -178,8 +210,9 @@ class QuickCropper(tk.Frame):
 
         #garbage rectangles so we have something to delete
         self.current_crop=[self.canvas.create_rectangle(0,0,0,0),self.canvas.create_rectangle(0,0,0,0)]
-        self.grid_num=4;
+        self.grid_num=1;
         self.current_grid=[]
+        self._draw_crop_region(*self.parent.winfo_pointerxy())
 
 
 
