@@ -12,13 +12,12 @@ class QuickCropper(tk.Frame):
         directory,filename=os.path.split(self.path)
         base_name,extension=os.path.splitext(filename)
 
-        return os.path.join(directory, "sc-r{:.4f}-{}".format(self.crop_ratio,base_name)+ extension)
-
+        return os.path.join(directory, "sc-r{}-{}".format(self.str_ratio,base_name)+ extension)
 
     def _crop(self, x, y):
         w,h=self.img_w,self.img_h
         r=self.crop_ratio
-        coords=self._calculate_crop_region_coords(x,y,w,h,r)
+        _,coords=self._calculate_crop_region_coords(x,y,w,h,r)
 
         cimg=self.img.crop(coords)
         return cimg
@@ -62,46 +61,49 @@ class QuickCropper(tk.Frame):
         cvsr=self.cvs_w/self.cvs_h
         r=self.crop_ratio
 
-        print(r)
-
-        if cvsr < r:
+        portrait_crop=cvsr < r
+        if portrait_crop:
             coords=self._calculate_coords_for_landscape_crop_region(x,y,w,h,r)
         else:
             coords=self._calculate_coords_for_portrait_crop_region(x,y,w,h,r)
-        return coords
+        return portrait_crop,coords
 
     def _draw_top_crop(self,coords):
-        self.canvas.delete(self.current_top_crop)
-        self.current_top_crop=self.canvas.create_rectangle(0,0,self.cvs_w,coords[1], fill="gray",stipple="gray75")
+        self.canvas.delete(self.current_crop[0])
+        self.current_crop[0]=self.canvas.create_rectangle(0,0,self.cvs_w,coords[1], fill="gray",stipple="gray75")
         return
 
     def _draw_bottom_crop(self,coords):
-        self.canvas.delete(self.current_bottom_crop)
-        self.current_bottom_crop=self.canvas.create_rectangle(0,coords[3],self.cvs_w,self.cvs_h, fill="gray",stipple="gray75")
+        self.canvas.delete(self.current_crop[1])
+        self.current_crop[1]=self.canvas.create_rectangle(0,coords[3],self.cvs_w,self.cvs_h, fill="gray",stipple="gray75")
         return
 
     def _draw_left_crop(self,coords):
-        self.canvas.delete(self.current_left_crop)
-        self.current_left_crop=self.canvas.create_rectangle(0,0,coords[0],self.cvs_h, fill="gray",stipple="gray75")
+        self.canvas.delete(self.current_crop[0])
+        self.current_crop[0]=self.canvas.create_rectangle(0,0,coords[0],self.cvs_h, fill="gray",stipple="gray75")
         return
 
     def _draw_right_crop(self,coords):
-        self.canvas.delete(self.current_right_crop)
-        self.current_right_crop=self.canvas.create_rectangle(coords[2],0,self.cvs_w,self.cvs_h, fill="gray",stipple="gray75")
+        self.canvas.delete(self.current_crop[1])
+        self.current_crop[1]=self.canvas.create_rectangle(coords[2],0,self.cvs_w,self.cvs_h, fill="gray",stipple="gray75")
         return
+
+    def _draw_4x4_grid(self,coords):
+        self.canvas.delete(self.current_grid)
 
     def _draw_crop_region(self,event):
         x,y=event.x,event.y
         w,h=self.cvs_w,self.cvs_h
-        self.canvas.delete(self.current_rectangle)
         r=self.crop_ratio
 
-        coords=self._calculate_crop_region_coords(x,y,w,h,r)
+        portrait_crop,coords=self._calculate_crop_region_coords(x,y,w,h,r)
 
-        self._draw_top_crop(coords)
-        self._draw_bottom_crop(coords)
-        self._draw_left_crop(coords)
-        self._draw_right_crop(coords)
+        if portrait_crop:
+            self._draw_top_crop(coords)
+            self._draw_bottom_crop(coords)
+        else:
+            self._draw_left_crop(coords)
+            self._draw_right_crop(coords)
         return
 
     def _assign_canvas_dimensions(self, win_size):
@@ -115,14 +117,14 @@ class QuickCropper(tk.Frame):
             self.cvs_w=int(self.img_r*win_size)
         return
 
-    def _assign_long_short_axis(self):
-        if self.crop_ratio < 1:
-            self.long_ax=self.cvs_h
-            self.short_ax=self.cvs_w
-        else:
-            self.long_ax=self.cvs_w
-            self.short_ax=self.cvs_h
-        return
+    #def _assign_long_short_axis(self):
+    #    if self.crop_ratio < 1:
+    #        self.long_ax=self.cvs_h
+    #        self.short_ax=self.cvs_w
+    #    else:
+    #        self.long_ax=self.cvs_w
+    #        self.short_ax=self.cvs_h
+    #    return
     
     @staticmethod
     def resize_image(final_width,image, window_width):
@@ -143,12 +145,18 @@ class QuickCropper(tk.Frame):
         self.tk_image=ImageTk.PhotoImage(resized_image)
         self.canvas.create_image((0,0),image=self.tk_image,anchor=tk.NW)
 
+    @staticmethod
+    def _parse_ratio(crop_ratio):
+        w,h=crop_ratio.split('x')
+        return int(w)/int(h)
+
     def __init__(self, parent, path, crop_ratio, win_size=1000, *args, **kwargs):
 
         tk.Frame.__init__(self,parent,*args,**kwargs)
         self.parent=parent
         self.path=path
-        self.crop_ratio=crop_ratio
+        self.str_ratio=crop_ratio
+        self.crop_ratio=self._parse_ratio(crop_ratio)
 
         self.parent.resizable(False,False)
         self.parent.bind("<Motion>", self._draw_crop_region)
@@ -160,15 +168,16 @@ class QuickCropper(tk.Frame):
         self.img_r=self.img_w/self.img_h
 
         self._assign_canvas_dimensions(win_size)
-        self._assign_long_short_axis()
+        #self._assign_long_short_axis()
         self._start_canvas()
 
         #garbage rectangle so we have something to delete
-        self.current_rectangle=self.canvas.create_rectangle(0,0,0,0)
-        self.current_top_crop=self.canvas.create_rectangle(0,0,0,0)
-        self.current_bottom_crop=self.canvas.create_rectangle(0,0,0,0)
-        self.current_left_crop=self.canvas.create_rectangle(0,0,0,0)
-        self.current_right_crop=self.canvas.create_rectangle(0,0,0,0)
+        #self.current_rectangle=self.canvas.create_rectangle(0,0,0,0)
+        #self.current_top_crop=self.canvas.create_rectangle(0,0,0,0)
+        #self.current_bottom_crop=self.canvas.create_rectangle(0,0,0,0)
+        #self.current_left_crop=self.canvas.create_rectangle(0,0,0,0)
+        #self.current_right_crop=self.canvas.create_rectangle(0,0,0,0)
+        self.current_crop=[self.canvas.create_rectangle(0,0,0,0),self.canvas.create_rectangle(0,0,0,0)]
 
 
 
@@ -180,13 +189,12 @@ def main():
     args=parser.parse_args()
 
     image_files=args.jpgs
-    w,h=args.crop_ratio.split('x')
 
     for f in image_files:
         root=tk.Tk()
         root.title('Click to crop')
 
-        QuickCropper(root,f,int(w)/int(h))
+        QuickCropper(root,f,args.crop_ratio)
         root.mainloop()
 
 if __name__=="__main__":
