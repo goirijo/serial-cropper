@@ -88,8 +88,21 @@ class QuickCropper(tk.Frame):
         self.current_crop[1]=self.canvas.create_rectangle(coords[2],0,self.cvs_w,self.cvs_h, fill="gray",stipple="gray75")
         return
 
-    def _draw_4x4_grid(self,coords):
-        self.canvas.delete(self.current_grid)
+    def _draw_grid(self,coords):
+        n=self.grid_num
+        for l in self.current_grid:
+            self.canvas.delete(l)
+
+        self.current_grid=[]
+
+        x0,y0,x1,y1=coords
+        x=np.linspace(x0,x1,n+1)
+        y=np.linspace(y0,y1,n+1)
+
+        for i in range(n+1):
+            self.current_grid.append(self.canvas.create_line(x[i],y0,x[i],y1))
+            self.current_grid.append(self.canvas.create_line(x0,y[i],x1,y[i]))
+
 
     def _draw_crop_region(self,event):
         x,y=event.x,event.y
@@ -104,6 +117,8 @@ class QuickCropper(tk.Frame):
         else:
             self._draw_left_crop(coords)
             self._draw_right_crop(coords)
+
+        self._draw_grid(coords)
         return
 
     def _assign_canvas_dimensions(self, win_size):
@@ -163,6 +178,8 @@ class QuickCropper(tk.Frame):
 
         #garbage rectangles so we have something to delete
         self.current_crop=[self.canvas.create_rectangle(0,0,0,0),self.canvas.create_rectangle(0,0,0,0)]
+        self.grid_num=4;
+        self.current_grid=[]
 
 
 
