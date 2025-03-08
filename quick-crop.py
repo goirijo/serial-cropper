@@ -45,13 +45,19 @@ class QuickCropper(tk.Frame):
     def _crop(self, x, y):
         w,h=self.img_w,self.img_h
         r=self.crop_ratio
-        _,coords=self._calculate_crop_region_coords(x,y,w,h,r)
+        _,coords=self._calculate_crop_region_coords(x,y,w,h)
 
+        print("coords:{}".format(coords))
         cimg=self.img.crop(coords)
         return cimg
 
     def _commit(self,event):
         x,y=event.x,event.y
+
+        #x and y are canvas positions, not true image positions
+        x=x*self.img_w/self.cvs_w
+        y=y*self.img_w/self.cvs_w
+
         new_file=self._get_cropped_pathname()
         cimg=self._crop(x,y)
         cimg.save(new_file)
@@ -87,7 +93,7 @@ class QuickCropper(tk.Frame):
         coords=(x-dx/2,y-dy/2,x+dx/2,y+dy/2)
         return coords
 
-    def _calculate_crop_region_coords(self, x, y, w, h, r):
+    def _calculate_crop_region_coords(self, x, y, w, h):
         cvsr=self.cvs_w/self.cvs_h
         r=self.crop_ratio
 
@@ -96,6 +102,7 @@ class QuickCropper(tk.Frame):
             coords=self._calculate_coords_for_landscape_crop_region(x,y,w,h,r)
         else:
             coords=self._calculate_coords_for_portrait_crop_region(x,y,w,h,r)
+
         return portrait_crop,coords
 
     def _draw_top_crop(self,coords):
@@ -139,7 +146,7 @@ class QuickCropper(tk.Frame):
         w,h=self.cvs_w,self.cvs_h
         r=self.crop_ratio
 
-        portrait_crop,coords=self._calculate_crop_region_coords(x,y,w,h,r)
+        portrait_crop,coords=self._calculate_crop_region_coords(x,y,w,h)
 
         if portrait_crop:
             self._draw_top_crop(coords)
@@ -149,6 +156,7 @@ class QuickCropper(tk.Frame):
             self._draw_right_crop(coords)
 
         self._draw_grid(coords)
+        self._current_coords=coords
         return
 
     def _assign_canvas_dimensions(self, win_size):
