@@ -8,6 +8,19 @@ import argparse
 
 class QuickCropper(tk.Frame):
 
+    def _on_scroll(self, event):
+        x, y = event.x, event.y
+        z=0.01
+        if event.num == 4 or event.delta > 0:
+            self.zoom+=z
+            self.zoom=min(1.0, self.zoom)
+        elif event.num == 5 or event.delta < 0:
+            self.zoom-=z
+            self.zoom=max(0.05,self.zoom)
+
+        self._draw_bbox(x, y)
+        self._shade_outside_bbox(x,y)
+
     def _on_x_press(self, event):
         self.parent.destroy()
 
@@ -46,20 +59,14 @@ class QuickCropper(tk.Frame):
             "sc-r{}-{}".format(self.str_ratio, base_name) + extension)
 
     def _crop(self, x, y):
-        w, h = self.img_w, self.img_h
-        r = self.crop_ratio
-        _, coords = self._calculate_crop_region_coords(x, y, w, h)
+        px_scaling = self.img_w/self.cvs_w
+        coords = self._calculate_bbox(x,y)
 
-        print("coords:{}".format(coords))
-        cimg = self.img.crop(coords)
+        cimg = self.img.crop(np.array(coords)*px_scaling)
         return cimg
 
     def _commit(self, event):
         x, y = event.x, event.y
-
-        #x and y are canvas positions, not true image positions
-        x = x * self.img_w / self.cvs_w
-        y = y * self.img_w / self.cvs_w
 
         new_file = self._get_cropped_pathname()
         cimg = self._crop(x, y)
@@ -258,8 +265,11 @@ class QuickCropper(tk.Frame):
         self.parent.resizable(False, False)
         self.parent.bind("<Motion>", self._on_mouse_move)
         self.parent.bind("<space>", self._on_space_press)
-        self.parent.bind("<Button-1>", self._commit)
+        self.parent.bind("<Double-Button-1>", self._commit)
         self.parent.bind("<Key>", self._on_key_press)
+        self.parent.bind("<MouseWheel>", self._on_scroll)
+        self.parent.bind("<Button-4>", self._on_scroll)
+        self.parent.bind("<Button-5>", self._on_scroll)
 
         self.img = Image.open(path)
         self.img_w, self.img_h = self.img.size
