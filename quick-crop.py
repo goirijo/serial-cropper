@@ -225,11 +225,6 @@ class QuickCropper(tk.Frame):
         w, h = crop_ratio.split('x')
         return int(w) / int(h)
 
-    def _rectify_ratio(self):
-        if self.crop_ratio < 1 and self.img_r < 1:
-            return
-        self.crop_ratio=1/self.crop_ratio
-
     def _assign_possible_spans(self):
         span1=[self.cvs_w, self.cvs_w*self.crop_ratio]
         span2=[self.cvs_w, self.cvs_w/self.crop_ratio]
@@ -276,7 +271,6 @@ class QuickCropper(tk.Frame):
         self.img_r = self.img_w / self.img_h
 
         self._assign_canvas_dimensions(win_size)
-        self._rectify_ratio()
         self._start_canvas()
 
         self.possible_spans=[]
