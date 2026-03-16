@@ -10,15 +10,16 @@ import argparse
 class QuickCropper(tk.Frame):
 
     def _on_left(self, event):
+        self.last_rotation=0.0
         self._rotate(0.1)
 
     def _on_right(self, event):
+        self.last_rotation=0.0
         self._rotate(-0.1)
 
     def _toggle_rotation(self,event):
-        resized_image = self._resize_image(self.img)
-        self.tk_img = ImageTk.PhotoImage(resized_image)
-        self.canvas.itemconfigure(self.img_id,image=self.tk_img, anchor=tk.CENTER)
+        self.rotation,self.last_rotation=self.last_rotation,self.rotation
+        self._rotate(0.0)
 
     def _rotate(self, d):
         self.rotation=(self.rotation+180)%360-180+d #unnecessary, but keeps angle between -180 and 180
@@ -45,6 +46,7 @@ class QuickCropper(tk.Frame):
 
     def _on_key_press(self, event):
         key = event.char
+        x, y = event.x, event.y
 
         if key == 'x':
             self._on_x_press(event)
@@ -54,6 +56,7 @@ class QuickCropper(tk.Frame):
             self._toggle_rotation(event)
         elif key.isdigit():
             self.grid_num = int(key)
+            self._draw_bbox(x, y)
         else:
             print("Unrecognized key '{}'".format(key))
 
@@ -64,7 +67,6 @@ class QuickCropper(tk.Frame):
         x, y = event.x, event.y
         self._draw_bbox(x, y)
         self._shade_outside_bbox(x, y)
-        self._rotate(0.0)
         return
 
     def _on_space_press(self, event):
@@ -290,6 +292,7 @@ class QuickCropper(tk.Frame):
 
         self.zoom=1.0
         self.rotation=0.0
+        self.last_rotation=0.0
         self.fit=1.0
 
         self.parent.resizable(False, False)
