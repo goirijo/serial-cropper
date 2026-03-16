@@ -10,10 +10,15 @@ import argparse
 class QuickCropper(tk.Frame):
 
     def _on_left(self, event):
-        self._rotate(-0.1)
+        self._rotate(0.1)
 
     def _on_right(self, event):
-        self._rotate(0.1)
+        self._rotate(-0.1)
+
+    def _toggle_rotation(self,event):
+        resized_image = self._resize_image(self.img)
+        self.tk_img = ImageTk.PhotoImage(resized_image)
+        self.canvas.itemconfigure(self.img_id,image=self.tk_img, anchor=tk.CENTER)
 
     def _rotate(self, d):
         self.rotation=(self.rotation+180)%360-180+d #unnecessary, but keeps angle between -180 and 180
@@ -45,6 +50,8 @@ class QuickCropper(tk.Frame):
             self._on_x_press(event)
         elif key == 't':
             self._test(event)
+        elif key == 'z':
+            self._toggle_rotation(event)
         elif key.isdigit():
             self.grid_num = int(key)
         else:
@@ -57,6 +64,7 @@ class QuickCropper(tk.Frame):
         x, y = event.x, event.y
         self._draw_bbox(x, y)
         self._shade_outside_bbox(x, y)
+        self._rotate(0.0)
         return
 
     def _on_space_press(self, event):
@@ -176,8 +184,10 @@ class QuickCropper(tk.Frame):
 
     def _draw_bbox(self, x, y):
         self.canvas.delete(self.bbox_rectangle)
+        bbox=self._calculate_bbox(x,y)
         self.bbox_rectangle = self.canvas.create_rectangle(
-            *self._calculate_bbox(x, y))
+            *bbox)
+        self._draw_grid(bbox)
 
     def _assign_canvas_dimensions(self, win_size):
         w, h = self.img_w, self.img_h
