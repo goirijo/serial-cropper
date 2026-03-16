@@ -3,6 +3,7 @@ from PIL import Image, ImageTk
 import tkinter as tk
 import numpy as np
 import os
+import math
 import argparse
 
 
@@ -22,6 +23,7 @@ class QuickCropper(tk.Frame):
         self._shade_outside_bbox(x,y)
 
     def _on_x_press(self, event):
+        print("Skipping...")
         self.parent.destroy()
 
     def _on_key_press(self, event):
@@ -29,6 +31,8 @@ class QuickCropper(tk.Frame):
 
         if key == 'x':
             self._on_x_press(event)
+        elif key == 't':
+            self._test(event)
         elif key.isdigit():
             self.grid_num = int(key)
         else:
@@ -62,7 +66,10 @@ class QuickCropper(tk.Frame):
         px_scaling = self.img_w/self.cvs_w
         coords = self._calculate_bbox(x,y)
 
+        final_img=self._rotfit_image(self.img)
+
         cimg = self.img.crop(np.array(coords)*px_scaling)
+        cimg = final_img.crop(np.array(coords)*px_scaling)
         return cimg
 
     def _commit(self, event):
@@ -78,45 +85,6 @@ class QuickCropper(tk.Frame):
     def _flip_crop_region(self):
         self.crop_ratio = 1 / self.crop_ratio
         return
-
-    def _calculate_coords_for_landscape_crop_region(self, x, y, w, h, r):
-        dx = w
-        dy = dx // r
-        x = dx / 2
-
-        max_h = w / r
-        y = max(y, max_h / 2)
-        y = min(h - max_h / 2, y)
-
-        coords = (x - dx / 2, y - dy / 2, x + dx / 2, y + dy / 2)
-        return coords
-
-    def _calculate_coords_for_portrait_crop_region(self, x, y, w, h, r):
-        dy = h
-        dx = dy * r
-        y = dy / 2
-
-        max_w = h * r
-        x = max(x, max_w / 2)
-        x = min(w - max_w / 2, x)
-
-        coords = np.array((x - dx / 2, y - dy / 2, x + dx / 2, y + dy / 2))
-        return coords
-
-    def _calculate_crop_region_coords(self, x, y, w, h):
-        cvsr = self.cvs_w / self.cvs_h
-        r = self.crop_ratio
-
-        portrait_crop = cvsr < r
-        if portrait_crop:
-            coords = self._calculate_coords_for_landscape_crop_region(
-                x, y, w, h, r)
-        else:
-            coords = self._calculate_coords_for_portrait_crop_region(
-                x, y, w, h, r)
-
-        return portrait_crop, coords
-
 
     def _shade_outside_bbox(self, x, y):
         for s in self.draw_shade:
@@ -210,15 +178,49 @@ class QuickCropper(tk.Frame):
             self.cvs_w = int(self.img_r * win_size)
         return
 
+    def _resize_image(self, img):
+        resized= img.resize((self.cvs_w, self.cvs_h), Image.LANCZOS)
+        return resized
+
+    def _rotfit_image(self, img):
+        #f=2 #temporary scaling factor for rotation, I guess it improves the sampling the more you upscale
+        #big=img.resize((f*img.width,f*img.height),Image.LANCZOS)
+        #big_rotated=big.rotate(self.rotation, resample=Image.BICUBIC, expand=False)
+
+        #big_rotated=img
+        #rotated=big_rotated.resize((img.width,img.height),Image.LANCZOS)
+
+        rotated=img.rotate(self.rotation, resample=Image.BICUBIC, expand=False)
+
+        iw, ih = img.width, img.height
+        #https://math.stackexchange.com/questions/438567/whats-the-formula-for-the-amount-to-scale-up-an-image-during-rotation-to-not-see
+        r=math.radians(abs(self.rotation))
+        self.fit = abs(math.cos(r))+max(iw/ih,ih/iw)*abs(math.sin(r))
+        fitted=rotated.resize((int(iw*self.fit), int(ih*self.fit)))
+
+        fc=np.array([fitted.width,fitted.height])*0.5
+        ic=np.array([img.width,img.height])*0.5
+        nw=fc-ic
+        se=fc+ic
+        return fitted.crop((*nw,*se))
+
     def _start_canvas(self):
         self.canvas = tk.Canvas(width=self.cvs_w, height=self.cvs_h)
-        resized_image = self.img.resize((self.cvs_w, self.cvs_h), Image.LANCZOS)
+        resized_image = self._resize_image(self.img)
 
         self.canvas.pack()
 
-        self.tk_image = ImageTk.PhotoImage(resized_image)
-        self.canvas.create_image((0, 0), image=self.tk_image, anchor=tk.NW)
+        self.tk_img = ImageTk.PhotoImage(resized_image)
+        self.img_id=self.canvas.create_image((self.cvs_w/2,self.cvs_h/2), image=self.tk_img, anchor=tk.CENTER)
         return
+
+    def _test(self, event):
+        d=5
+        self.rotation=(self.rotation+180)%360-180+d #unnecessary, but keeps angle between -180 and 180
+
+        self.tk_img = ImageTk.PhotoImage(self._rotfit_image(self._resize_image(self.img)))
+        self.canvas.itemconfigure(self.img_id,image=self.tk_img, anchor=tk.CENTER)
+
 
     @staticmethod
     def _parse_ratio(crop_ratio):
@@ -242,6 +244,16 @@ class QuickCropper(tk.Frame):
     def _span_small(self):
         self.bbox_span=self.possible_spans[1]
 
+    def _bind_buttons(self):
+        self.parent.bind("<Motion>", self._on_mouse_move)
+        self.parent.bind("<space>", self._on_space_press)
+        self.parent.bind("<Double-Button-1>", self._commit)
+        self.parent.bind("<Key>", self._on_key_press)
+        self.parent.bind("<MouseWheel>", self._on_scroll)
+        self.parent.bind("<Button-4>", self._on_scroll)
+        self.parent.bind("<Button-5>", self._on_scroll)
+
+
     def __init__(self,
                  parent,
                  path,
@@ -255,16 +267,13 @@ class QuickCropper(tk.Frame):
         self.path = path
         self.str_ratio = crop_ratio
         self.crop_ratio = self._parse_ratio(crop_ratio)
+
         self.zoom=1.0
+        self.rotation=0.0
+        self.fit=1.0
 
         self.parent.resizable(False, False)
-        self.parent.bind("<Motion>", self._on_mouse_move)
-        self.parent.bind("<space>", self._on_space_press)
-        self.parent.bind("<Double-Button-1>", self._commit)
-        self.parent.bind("<Key>", self._on_key_press)
-        self.parent.bind("<MouseWheel>", self._on_scroll)
-        self.parent.bind("<Button-4>", self._on_scroll)
-        self.parent.bind("<Button-5>", self._on_scroll)
+        self._bind_buttons()
 
         self.img = Image.open(path)
         self.img_w, self.img_h = self.img.size
