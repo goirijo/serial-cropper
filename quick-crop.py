@@ -9,6 +9,18 @@ import argparse
 
 class QuickCropper(tk.Frame):
 
+    def _on_left(self, event):
+        self._rotate(-0.1)
+
+    def _on_right(self, event):
+        self._rotate(0.1)
+
+    def _rotate(self, d):
+        self.rotation=(self.rotation+180)%360-180+d #unnecessary, but keeps angle between -180 and 180
+
+        self.tk_img = ImageTk.PhotoImage(self._rotfit_image(self._resize_image(self.img)))
+        self.canvas.itemconfigure(self.img_id,image=self.tk_img, anchor=tk.CENTER)
+
     def _on_scroll(self, event):
         x, y = event.x, event.y
         z=0.01
@@ -66,7 +78,7 @@ class QuickCropper(tk.Frame):
         px_scaling = self.img_w/self.cvs_w
         coords = self._calculate_bbox(x,y)
 
-        final_img=self._rotfit_image(self.img)
+        final_img=self._rotfit_image(self.img, f=2)
 
         cimg = self.img.crop(np.array(coords)*px_scaling)
         cimg = final_img.crop(np.array(coords)*px_scaling)
@@ -182,15 +194,18 @@ class QuickCropper(tk.Frame):
         resized= img.resize((self.cvs_w, self.cvs_h), Image.LANCZOS)
         return resized
 
-    def _rotfit_image(self, img):
-        #f=2 #temporary scaling factor for rotation, I guess it improves the sampling the more you upscale
-        #big=img.resize((f*img.width,f*img.height),Image.LANCZOS)
-        #big_rotated=big.rotate(self.rotation, resample=Image.BICUBIC, expand=False)
 
-        #big_rotated=img
-        #rotated=big_rotated.resize((img.width,img.height),Image.LANCZOS)
+    def _rotfit_image(self, img, f=1):
+        if self.rotation == 0.0:
+            return img
 
-        rotated=img.rotate(self.rotation, resample=Image.BICUBIC, expand=False)
+        #temporary scaling factor for rotation, I guess it improves the sampling the more you upscale
+        if f > 1:
+            big=img.resize((f*img.width,f*img.height),Image.LANCZOS)
+            big_rotated=big.rotate(self.rotation, resample=Image.BICUBIC, expand=False)
+            rotated=big_rotated.resize((img.width,img.height),Image.LANCZOS)
+        else:
+            rotated=img.rotate(self.rotation, resample=Image.BICUBIC, expand=False)
 
         iw, ih = img.width, img.height
         #https://math.stackexchange.com/questions/438567/whats-the-formula-for-the-amount-to-scale-up-an-image-during-rotation-to-not-see
@@ -213,13 +228,6 @@ class QuickCropper(tk.Frame):
         self.tk_img = ImageTk.PhotoImage(resized_image)
         self.img_id=self.canvas.create_image((self.cvs_w/2,self.cvs_h/2), image=self.tk_img, anchor=tk.CENTER)
         return
-
-    def _test(self, event):
-        d=5
-        self.rotation=(self.rotation+180)%360-180+d #unnecessary, but keeps angle between -180 and 180
-
-        self.tk_img = ImageTk.PhotoImage(self._rotfit_image(self._resize_image(self.img)))
-        self.canvas.itemconfigure(self.img_id,image=self.tk_img, anchor=tk.CENTER)
 
 
     @staticmethod
@@ -252,6 +260,8 @@ class QuickCropper(tk.Frame):
         self.parent.bind("<MouseWheel>", self._on_scroll)
         self.parent.bind("<Button-4>", self._on_scroll)
         self.parent.bind("<Button-5>", self._on_scroll)
+        self.parent.bind("<Left>", self._on_left)
+        self.parent.bind("<Right>", self._on_right)
 
 
     def __init__(self,
